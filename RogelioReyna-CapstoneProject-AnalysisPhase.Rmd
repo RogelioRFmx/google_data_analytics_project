@@ -88,45 +88,9 @@ PieDonut(data= df, aes(member_casual), explode = 2, explodeDonut = true)
 ```
 
 
-```{r}
-ggplot(data=df, aes(x = member_casual, y = ride_length, fill = member_casual)) +
-  geom_boxplot() +
-  labs(title = "Distribution of Ride Lengths by Member Type", x = "Member Type", y = "Ride Length")
 
 
 
-```
-
-```{r}
-ggplot(data=df, aes(x = ride_length, fill = member_casual)) +
-  geom_histogram(position = "dodge", bins = 30) +
-  labs(title = "Histogram of Ride Lengths by Member Type", x = "Ride Length", y = "Count")
-
-
-```
-
-```{r}
-df %>%
-  mutate(hour = as.numeric(format(started_at, "%H"))) %>%
-  group_by(day_of_week, hour, member_casual) %>%
-  summarise(count = n()) %>%
-  ggplot(aes(x = hour, y = day_of_week, fill = count)) +
-  geom_tile() +
-  facet_wrap(~ member_casual) +
-  labs(title = "Heatmap of Rides by Hour and Day of Week", x = "Hour of Day", y = "Day of Week")
-
-```
-
-```{r}
-df %>%
-  group_by(month_of_year, member_casual) %>%
-  summarise(total_rides = n()) %>%
-  ggplot(aes(x = month_of_year, y = total_rides, color = member_casual)) +
-  geom_line() +
-  labs(title = "Total Rides Over Time by Member Type", x = "Month", y = "Total Rides")
-
-
-```
 
 ```{r}
 df %>%
