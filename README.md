@@ -1,6 +1,5 @@
 # Cyclistic Bike-Share Analysis - Capstone Project. Google Data Analytics Professional Certificate (using R & Tableau)
-This is an analysis case study as part of the capstone project of the Google Data Analytics Professional Certificate, where data fromm Cyclistic Bike-Share is presented, a fictional company. 
-I am going to address a business task to understand and plan a smart strategy using the data analysis process that was taught in this certificate.
+This case study forms a key component of the capstone project for the Google Data Analytics Professional Certificate. It involves analyzing data from Cyclistic Bike-Share, a fictional company. My goal is to tackle a business challenge by leveraging the data analysis techniques and methodologies taught throughout the certificate program. This analysis will guide the development of a strategic plan based on the insights gained from the data.
 
 # Introduction
 About the Company
