@@ -95,7 +95,8 @@ Docked bikes have the longest average ride duration (56 minutes).
 # Count of Rideable Type and Ride Length - By Weekdays and User Type
 There is a clear difference in the usage of bikes during the week for casual and members, during working days the members are who use it more, and during weekends the casual users are who use the service more.
 
-![Count of Rideable Type and Ride Length - By Weekdays and User Type](https://github.com/user-attachments/assets/7325c7e5-250a-4109-a1ea-429571523e70)
+![Count of Rideable Type and Ride Length - By Weekdays and User Type](https://github.com/user-attachments/assets/4f8710b9-6744-4e77-b1f6-90c8184356c4)
+
 
 # Seasonal - Monthly Trip Trends
 There are more trips during summer and less during winter.
