@@ -28,10 +28,8 @@ Cyclistic Executive Team: The executive team, known for their attention to detai
 The data set is stored in an <a href="https://divvy-tripdata.s3.amazonaws.com/index.html" target="_blank">AWS server</a> 
 
 # Data Structure
-Each .csv file contains a table with 13 columns with varying data types as shown below. Each column stands for a field that describes how people use Cyclistic's bike-sharing service. Each row represents an observation with the details of every ride.
+Each .csv file includes a table with 13 columns of different data types. Each column represents a field describing the usage of Cyclistic's bike-sharing service, while each row provides details of an individual ride.
 
-- ride_id = col_character(),
-- rideable_type = col_character(),
 - ride_id = col_character(),
 - rideable_type = col_character(),
 - started_at = col_datetime(format = ""),
@@ -48,6 +46,7 @@ Each .csv file contains a table with 13 columns with varying data types as shown
 
 # Phase 3: Process
 > Here I cleaned and transformed data while maintaining the data’s integrity. Documenting the data-cleaning process is essential to keep track of the changes made to the dataset.
+> Here I also created new metrics/new columns.
 
 I used Rstudio to combine and clean the dataset. Here are the steps that I did during this phase
 
@@ -56,11 +55,80 @@ I used Rstudio to combine and clean the dataset. Here are the steps that I did d
 3. Additional columns and data transformation (change the data type, remove trailing or leading spaces, etc.)
 4. Extract data for analysis
 
+For all the detailed process, you can review it in the code. here it is. <a href="[https://divvy-tripdata.s3.amazonaws.com/index.html](https://github.com/RogelioRFmx/google_data_analytics_project/blob/main/RogelioReyna-CapstoneProject-ProcessPhase.Rmd)" target="_blank">Process code</a>
+
+This part was very interesting and challenging for me since I tried to fix the inconsistencies for the ID Stations and Stations names.
+
+# Phase 4: Analyze
+> During this phase, I employ tools capable of formatting, transforming, filtering, and sorting our data. This enables us to recognize patterns, make predictions, draw conclusions, and provide recommendations, facilitating the formulation of data-driven decisions.
+> In this phase I also created new columns to have specific metrics that helped me to visualize and analyze better the data.
+
+I used R to look at a huge data I cleaned and prepared.
+
+
+Findings
+* 64.89% of the total Cyclistic users are annual members while 35.11% are casual riders.
+* The most preferred  rideable type for both users is classic bikes. But, for casual users the difference between classic and electric is not huge in number. And Only casual riders use docked bikes.
+* Generally, casual riders have the longest average ride duration (almost 27 minutes) compared with annual members (13 minutes).
+* Docked bikes have the longest average ride duration (56 minutes).
+* There is a clear difference in the usage of bikes during the week for casual and members, during working days the members are who use it more, and during weekends the casual users are who use the service more.
+* There are more trips during summer and less during winter.
+
+# Phase 5: Share
+Share the findings using visualizations.
+
+> Data Visualization
+> I used Tableau public in making the visualization.
+
+
+# Distribution of User Types in the Last 12 Months
+64.89% of the total Cyclistic users are annual members while 35.11% are casual riders.
+![Distribution of User Types in the Last 12 Months](https://github.com/user-attachments/assets/7de92ba9-6ef3-4d17-b385-6736af3e8ac3)
+
+# Rideable Preference and Average Ride Duration per Type of User
+The most preferred  rideable type for both users is classic bikes. But, for casual users the difference between classic and electric is not huge in number. And Only casual riders use docked bikes.
+Generally, casual riders have the longest average ride duration (almost 27 minutes) compared with annual members (13 minutes).
+Docked bikes have the longest average ride duration (56 minutes).
+
+![Rideable Preference and Average Ride Duration per Type of User](https://github.com/user-attachments/assets/f569a328-841d-4e1b-b211-1492822d6f9e)
+
+# Count of Rideable Type and Ride Length - By Weekdays and User Type
+There is a clear difference in the usage of bikes during the week for casual and members, during working days the members are who use it more, and during weekends the casual users are who use the service more.
+
+![Count of Rideable Type and Ride Length - By Weekdays and User Type](https://github.com/user-attachments/assets/7325c7e5-250a-4109-a1ea-429571523e70)
+
+# Seasonal - Monthly Trip Trends
+There are more trips during summer and less during winter.
+
+![Seasonal - Monthly Trip Trends](https://github.com/user-attachments/assets/5f16aad5-2a5e-4430-b4da-acda74c3eff0)
+
+# 6 Most Popular Start Stations
+The most popular start stations are close to the coast and are dominated by casual members.
+![6 Most Popular Start Stations](https://github.com/user-attachments/assets/35422134-edd6-44e6-945d-e5f9a89fc438)
+
+# 6 Most Popular End Stations
+The most popular end stations are close to the coast and are dominated by casual members.
+![6 Most Popular End Stations](https://github.com/user-attachments/assets/f87bfe7d-30c7-43be-9b67-32d062349f42)
+
+
+# Phase 6: Act
+> In this final phase, the insights gained are utilized to make informed decisions that address the issues identified during the initial analysis phase. This decision-making process may involve a range of actions, including refining or enhancing existing products and services based on the new understanding. Additionally, it could lead to the development and introduction of entirely new products or services designed to better meet the needs and expectations revealed through the analysis. By leveraging these insights, we aim to implement strategic changes that effectively resolve the problems and drive improvements in our offerings.
+
+# Recommendations
+
+* **Highlight Benefits for Long-Duration Riders**: Since casual riders have longer average ride durations (27 minutes compared to 13 minutes for annual members), develop targeted marketing campaigns that emphasize **the value and cost-efficiency of annual memberships for frequent, long-duration rides**.
+* **Promote Seasonal Discounts** Offer special promotions or discounts on annual memberships during the summer months to attract casual riders who are more active during this time.
+* **Improve Docked Bike Usage**: Since docked bikes have the longest average ride duration (56 minutes), explore ways to make docked bikes more appealing. This could include adding more docked bike stations in high-traffic areas or offering incentives for **using docked bikes**, such as a **discount on an annual membership**.
+* Since casual riders use bikes more on weekends, while annual members ride more on weekdays. Create **weekend-centric promotions** or events to **encourage casual riders** to consider the **benefits of an annual membership** for more consistent usage throughout the week.
+* **Winter Engagement Programs**: This could include **winter promotions for annual memberships** or special events that encourage bike usage even in colder months.
+* **Summer Member Drives**: Capitalize on **higher bike usage in summer** to run a **membership drive with incentives** such as **limited-time summer discounts** or **perks for new annual members**.
 
 
 
 
-![Distribution of User Types in the Last 12 Months](https://github.com/user-attachments/assets/08c2c778-ef2d-4140-8ab4-8fe365e9f9d0)
+
+
+
 
 
 
