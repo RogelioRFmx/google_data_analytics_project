@@ -1,0 +1,833 @@
+---
+title: "Capstone Project"
+author: "Rogelio Reyna"
+date: "2024-07-13"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Cyclistic BIKE-SHARE. Analysis Case study
+
+### Setting up the environmet for data manipulation
+```{r install packages}
+install.packages("tidyverse")
+install.packages("skimr")
+install.packages("janitor")
+```
+
+```{r upload libraries}
+library(tidyverse)
+library(skimr)
+library(janitor)
+```
+
+
+# Ask Phase
+
+Business task
+
+Objective: 
+Drive the future growth of Cyclistic by maximizing the number of annual members.
+
+Hypothesis:
+We hypothesize that converting casual riders into annual members will significantly contribute to the growth.
+
+Plan:
+Conduct a thorough analysis to understand how casual riders and annual members differ in terms of the use of Cyclistic bikes. *Extra: demographics.*
+
+# Prepare Phase
+```{r load dataset}
+```
+
+
+
+```{r merge all CSV files}
+# List all CSV files in the directory
+csv_files <- list.files(path = "./", pattern = "\\.csv$", full.names = TRUE)
+
+# Read all CSV files into a list of dataframes
+list_of_dfs <- lapply(csv_files, read_csv)
+
+# Merge all dataframes into one
+merged_df <- bind_rows(list_of_dfs)
+
+# Save merged dataframe to a CSV file
+write_csv(merged_df, "./all_data.csv")
+```
+
+```{r loading the dataset in df variable}
+df <- read_csv("all_data.csv")
+```
+
+
+```{r Check completeness}
+skim_without_charts(df)
+```
+
+Trimming all the char columns
+
+```{r Trimming all the char columns}
+
+df <- df %>% mutate(start_station_name = str_squish(start_station_name))
+df <- df %>% mutate(start_station_id = str_squish(start_station_id))
+df <- df %>% mutate(end_station_name = str_squish(end_station_name))
+df <- df %>% mutate(end_station_id = str_squish(end_station_id))
+df <- df %>% mutate(member_casual = str_squish(member_casual))
+
+```
+
+
+
+Printing start unique stations by name, and id.
+
+```{r}
+# Get unique values of start_station_name and start_station_id
+unique_values <- unique(df[c("start_station_name", "start_station_id")])
+
+# Print the unique values
+#print(unique_values)
+
+
+
+```
+
+Checking if we have the same number of unique IDs as station names.
+
+```{r}
+unique_stations <- unique(unique_values$start_station_name)
+length(unique_stations)
+unique_ids <- unique(unique_values$start_station_id)
+length(unique_ids)
+
+```
+Group by the variable with more unique values to see the count of ID for the unique names.
+Since we have more names than IDs, then we can expect having more than 1 count for some names.
+Let's figure out this assumption.
+
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+unique_values %>% group_by(start_station_name) %>% summarize(count_ID = n()) %>% filter(count_ID>1) %>% arrange(-count_ID)
+
+```
+Getting the start_station_name that have more than 1 ID. This is the list of the stations that we need to fix.
+We are going to need that list as a vector
+```{r Stations with more than 1 ID}
+stations_to_fix_IDs <- unique_values %>% 
+  group_by(start_station_name) %>% 
+  summarize(count_ID = n()) %>% 
+  filter(count_ID>1) %>% 
+  arrange(count_ID) %>% 
+  pull(start_station_name)
+  
+```
+
+Now the same process but changing the approach to group by start_station_id
+
+```{r Counting the names for each ID, showing only those IDs with more than one name}
+unique_values %>% group_by(start_station_id) %>% summarize(count_names = n()) %>% filter(count_names>1) %>% arrange(-count_names)
+```
+
+Getting the start_station_id that have more than 1 name
+
+```{r}
+stations_to_fix_names <- unique_values %>% 
+  group_by(start_station_id) %>% 
+  summarize(count_names = n()) %>% 
+  filter(count_names>1) %>% 
+  arrange(-count_names) %>% 
+  pull(start_station_id)
+
+```
+
+Now that we have the vectors containing the stations to fix names and IDs, now... we are going to print all those values to evaluate which is the right value that should correspond to each name and ID that have issues. That's why we created the previous commands to see if name or ID have more than 1 unique value.
+
+This first part is for getting the right IDs.
+
+```{r Printing values to choose the correct one. Manual process}
+# Initialize an empty list to store filtered dataframes
+filtered_dfs_names <- list()
+
+for (variable_name in stations_to_fix_IDs) {
+  filtered_df_name <- unique_values %>% filter(grepl(variable_name, start_station_name))
+  
+  # Append filtered dataframe to the list
+  filtered_dfs_names[[variable_name]] <- filtered_df_name
+}
+for (x in filtered_dfs_names){
+  #print(x)
+}
+# In this case, I needed to run the last part in the console and then extract manually the result so I can
+# create the scripts to update the right values
+```
+
+
+Now do the same for getting the correct names.
+
+```{r Printing values to choose the correct one. Manual process}
+# Initialize an empty list to store filtered dataframes
+filtered_dfs_IDs <- list()
+
+for (variable_id in stations_to_fix_names) {
+  filtered_df_id <- unique_values %>% filter(start_station_id==variable_id)
+  
+  # Append filtered dataframe to the list
+  filtered_dfs_IDs[[variable_id]] <- filtered_df_id
+}
+for (x in filtered_dfs_IDs){
+  #print(x)
+}
+
+# In this case, I needed to run the last part in the console and then extract manually the result so I can
+# create the scripts to update the right values
+```
+
+
+Now that I have worked manually with the correct values of names and IDs. I realized of some "special" cases where IDs with a length of three characters have 2 names. To check deeply this situation I will create a vector for those names to see if those only have one ID.
+
+This list is from printing "filtered_dfs_IDs" vector.
+
+```{r Creating the vector of the station names with duplicated IDs.}
+stations_names_duplicate_IDs <- c(
+  "Public Rack - Kostner Ave & Wrightwood Ave",
+  "Glenlake Ave & Pulaski Rd",
+  "Granville Ave & Pulaski Rd",
+  "Public Rack - Hamlin Ave & Grand Ave",
+  "Ridge Blvd & Howard St",
+  "Paulina St & Howard St",
+  "Public Rack - Hamlin Ave & Chicago Ave",
+  "Public Rack - Pulaski Rd & Armitage Ave",
+  "Clark St & Jarvis Ave",
+  "Conservatory Dr & Lake St",
+  "Public Rack - Keystone Ave & North Ave",
+  "Wolcott Ave & Fargo Ave",
+  "Public Rack - Kostner Ave & North Ave",
+  "Greenview Ave & Jarvis Ave",
+  "Public Rack - Karlov Ave & Kamerling Ave",
+  "Eastlake Ter & Howard St",
+  "Public Rack - Pulaski Rd & Roosevelt Rd",
+  "Glenwood Ave & Touhy Ave",
+  "Public Rack - Kedzie Ave & Arthington St",
+  "Pulaski Rd & Lake St",
+  "Public Rack - Pulaski Rd & 15th St",
+  "Karlov Ave & Madison St",
+  "Public Rack - California Ave & Ogden Ave",
+  "Pulaski Rd & Congress Pkwy",
+  "Public Rack - Zapata Academy",
+  "Public Rack - Keeler Ave & 26th St",
+  "Kostner Ave & Lake St",
+  "Public Rack - 2302 S Pulaski Rd",
+  "Kenton Ave & Madison St",
+  "Laramie Ave & Gladys Ave",
+  "Public Rack - Cicero Ave & Roscoe St",
+  "Kostner Ave & Adams St",
+  "Public Rack - Linder Ave & Belmont Ave",
+  "Damen Ave & Pershing Rd",
+  "Public Rack - Cicero Ave & Wellington Ave",
+  "Marshfield Ave & 44th St",
+  "Public Rack - Laramie Ave & Fullerton Ave",
+  "Elizabeth St & 47th St",
+  "Public Rack - Lorel Ave & Chicago Ave",
+  "Damen Ave & 51st St",
+  "Public Rack - Cicero Ave & Le Moyne St - midblock",
+  "Public Rack - Menard Ave & Dakin St - midblock",
+  "Racine Ave & Garfield Blvd",
+  "Marshfield Ave & 59th St",
+  "Public Rack - Austin Ave & Roscoe St",
+  "Damen Ave & 59th St",
+  "Public Rack - Melvina Ave & Belmont Ave",
+  "Racine Ave & 61st St",
+  "Public Rack - Menard Ave & Belmont Ave",
+  "Racine Ave & 65th St",
+  "Public Rack - Austin Ave & Wellington Ave",
+  "May St & 69th St",
+  "Public Rack - Harvey Ave & North Ave",
+  "Woodlawn Ave & 75th St",
+  "Public Rack - Menard Ave & Grand Ave",
+  "Evans Ave & 75th St",
+  "Public Rack - McVicker Ave & Grand Ave",
+  "Public Rack - Austin Blvd & North Ave",
+  "Vernon Ave & 75th St",
+  "State St & 76th St",
+  "Public Rack - Hiawatha Park",
+  "State St & 79th St",
+  "Public Rack - Panama Ave & Forest Preserve Ave",
+  "Vernon Ave & 79th St",
+  "Public Rack - Canty Elementary School",
+  "Cottage Grove Ave & 78th St",
+  "Public Rack - Pittsburgh Ave & Irving Park",
+  "Stony Island Ave & South Chicago Ave",
+  "Public Rack - Ozark Ave & Addison St",
+  "Phillips Ave & 79th St",
+  "Public Rack - Oketo Ave & Belmont Ave",
+  "Stony Island Ave & 82nd St",
+  "Public Rack - Baltimore Ave & 134th St",
+  "Ellis Ave & 83rd St",
+  "Public Rack - Baltimore Ave & 132nd St",
+  "Cottage Grove Ave & 83rd St",
+  "Public Rack - Houston Ave & 131st St",
+  "MLK Jr Dr & 83rd St",
+  "Public Rack - Stewart Ave & 123rd St",
+  "Kilbourn Ave & Irving Park Rd",
+  "Public Rack - Ada St & 117th St",
+  "Public Rack - Indiana Ave & 111th St",
+  "Western Blvd & 48th Pl",
+  "Valli Produce - Evanston Plaza",
+  "Public Rack - Avenue J & 112th St",
+  "Sheridan Rd & Noyes St (NU)",
+  "Public Rack - Wentworth Ave & 103rd St",
+  "Public Rack - Ada St & 95th St",
+  "Orleans St & Chestnut St (NEXT Apts)",
+  "Michigan Ave & 8th St",
+  "Public Rack - Halsted St & 102nd St",
+  "Dearborn St & Van Buren St",
+  "Public Rack - Parnell Ave & 98th St",
+  "Malcolm X College",
+  "Public Rack - Yates Ave & 100th St",
+  "Orleans St & Hubbard St",
+  "Public Rack - Ewing Ave & 101st St",
+  "Wood St & Chicago Ave",
+  "Public Rack - Ewing Ave & 96th St N",
+  "Clinton St & Jackson Blvd",
+  "Public Rack - Ewing Ave & Indianapolis Ave",
+  "Lakefront Trail & Wilson Ave",
+  "Public Rack - Ewing Ave & 99th St",
+  "Latrobe Ave & Chicago Ave",
+  "Public Rack - Justine St & 87th St",
+  "Smith Park",
+  "Public Rack - Vincennes Ave & 87th St",
+  "Western Ave & Fillmore St",
+  "Public Rack - Wabash Ave & 87th St",
+  "State St & 54th St",
+  "Public Rack - Cottage Grove Ave & 87th St",
+  "Elizabeth St & 59th St",
+  "Racine Ave & 57th St",
+  "Eggleston Ave & 69th St",
+  "Public Rack - Houston Ave & 91st St",
+  "Michigan Ave & 71st St",
+  "Public Rack - Commercial Ave & 89th St",
+  "Racine Ave & Washington Blvd",
+  "Public Rack - Racine Ave & 83rd St",
+  "Hoyne Ave & Balmoral Ave",
+  "Public Rack - Sangamon St & 79th St",
+  "Wood St & Augusta Blvd",
+  "Public Rack - Wentworth Ave & 79th St",
+  "Leavitt St & Division St",
+  "Public Rack - King Dr & 83rd St",
+  "Sheridan Rd & Columbia Ave",
+  "Public Rack - Prairie Ave & 85th St",
+  "Evanston Civic Center",
+  "Public Rack - Langley Ave & 79th St",
+  "Public Rack - Cottage Grove & 86th St",
+  "Dodge Ave & Mulford St",
+  "South Chicago Ave & Elliot Ave",
+  "Public Rack - 83rd St (Avalon Park) Metra",
+  "Museum of Science and Industry",
+  "Griffin Museum of Science and Industry",
+  "Clark St & Randolph St",
+  "Wells St & Randolph St",
+  "Lincoln Ave & Belmont Ave (Temp)",
+  "Lincoln Ave & Melrose St"
+)
+```
+
+Now I will run a for loop to print the IDs for each one.
+```{r Loking for IDs for each name}
+
+for (station in stations_names_duplicate_IDs) {
+  print(unique_values %>% filter(grepl(station, start_station_name)))
+}
+
+```
+
+After working manually with a spreadsheet to rectify the correct IDs and names, I have the values that I want to update in the dataframe. So, let's do this.
+
+First, we are going to put the correct names into a new data frame.
+
+```{r Creating the vector with the correct names}
+df_correct_names <- data.frame(
+  start_station_id = c("15541", "13290", "15541.1.1", "528", "21322", "KA1503000074", "21366", "21371", "536", "23215", "1013", "851", "532"),
+  start_station_name = c("Buckingham Fountain", "Noble St & Milwaukee Ave", "Buckingham Fountain", "Public Rack - Pulaski Rd & 15th St", "Grace St & Cicero Ave", "Museum of Science and Industry", "Spaulding Ave & 16th St", "Kildare Ave & Chicago Ave", "Public Rack - Keeler Ave & 26th St", "Lexington St & California Ave", "Public Rack - Pulaski Rd & Lake St", "Public Rack - Kostner Ave & Lake St", "Public Rack - Central Park Ave & Ogden Ave"),
+  stringsAsFactors = FALSE
+)
+
+```
+
+Now, let's use the left_join method for merging the new correct values. In this first part, we are going to put the correct names matching the IDs.
+
+```{r Updating the right name values to specific IDs}
+#Since now we are going to start making changes in the df, we are going to create a copy. Just in case we need the previous step.
+
+df_fixed <- df
+
+```
+
+Now, we'll apply the left_join() and will fix the names, making the match by "start_station_id"
+
+```{r Updating names into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed <- df_fixed %>% 
+  left_join(df_correct_names, by = "start_station_id", suffix = c(".x", ".y")) %>% 
+  mutate(
+    start_station_name = case_when(
+      !is.na(start_station_name.y) ~ as.character(start_station_name.y), # If start_station_name.y is not NA, use it
+      TRUE ~ as.character(start_station_name.x)              # Otherwise, use start_station_name.x
+    )
+  ) %>%
+  select(-starts_with("start_station_name."))  # Remove columns starting with 'start_station_name.' the temporary columns
+  
+```
+
+Now we have just put the right names to the IDs that had more than 1 name. Then, we need to fix the IDs to the names that have more than 1 ID. For example:
+
+```{r Checking that we have IDs to fix}
+df_fixed %>% filter(grepl("Buckingham Fountain",start_station_name)) %>% select(start_station_name, start_station_id) %>% distinct()
+```
+
+Same process, we are going to put the correct IDs into a new data frame 
+
+```{r Creating the vector with the correct IDs}
+df_correct_IDs <- data.frame(
+  start_station_name = c(
+    "Artesian Ave & 55th St",
+    "California Ave & Marquette Rd",
+    "Central Park Ave & Douglas Blvd",
+    "Harding Ave & 26th St",
+    "Kedzie Ave & 52nd St",
+    "Kildare Ave & 47th St",
+    "Kildare Ave & Division St",
+    "Kostner Ave & Wrightwood Ave",
+    "Lavergne Ave & Division St",
+    "Leamington Ave & Hirsch St",
+    "Long Ave & Belmont Ave",
+    "Monticello Ave & Chicago Ave",
+    "Richmond St & 59th St",
+    "Spaulding Ave & 16th St",
+    "Tripp Ave & 65th St",
+    "Buckingham Fountain",
+    "Campbell Ave & 51st St",
+    "Fairfield Ave & 44th St",
+    "Hoyne Ave & 34th St",
+    "Kedzie Ave & 57th St",
+    "Kildare Ave & 55th St",
+    "Kilpatrick Ave & Grand Ave",
+    "Lamon Ave & Armitage Ave",
+    "Lawler Ave & 50th St",
+    "Lincoln Ave & Peterson Ave",
+    "Long Ave & North Ave",
+    "Parkside Ave & Armitage Ave",
+    "Richmond St & Lincoln Ave",
+    "St Louis Ave & 59th St",
+    "California Ave & 36th St",
+    "Central Ave & Roscoe St",
+    "Francisco Ave & 47th St",
+    "Kedzie Ave & 48th Pl",
+    "Kildare Ave & 26th St",
+    "Kildare Ave & Chicago Ave",
+    "Kostner Ave & 63rd St",
+    "Lamon Ave & Chicago Ave",
+    "Lawndale Ave & 30th St",
+    "Lockwood Ave & Wrightwood Ave",
+    "Meade Ave & Diversey Ave",
+    "Pulaski Rd & 51st St",
+    "Rockwell St & 57th St",
+    "Tripp Ave & 31st St"
+  ),
+  start_station_id = c(
+    "21345",
+    "21390",
+    "21329",
+    "21332",
+    "21384",
+    "21401",
+    "21303",
+    "23321",
+    "21304",
+    "21307",
+    "21317",
+    "21301",
+    "21388",
+    "21366",
+    "21407",
+    "15541",
+    "21383",
+    "21380",
+    "21337",
+    "21346",
+    "21403",
+    "21374",
+    "21357",
+    "21400",
+    "21462",
+    "21375",
+    "21354",
+    "21452",
+    "21387",
+    "21338",
+    "21396",
+    "21381",
+    "21382",
+    "21365",
+    "21371",
+    "21406",
+    "24205",
+    "21334",
+    "21312",
+    "21353",
+    "21343",
+    "21386",
+    "21368"
+  ),
+  stringsAsFactors = FALSE
+)
+
+```
+
+Now, we'll apply the left_join() and will fix the IDs, making the match by "start_station_name"
+
+```{r Updating names into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed <- df_fixed %>% 
+  left_join(df_correct_IDs, by = "start_station_name", suffix = c(".x", ".y")) %>% 
+  mutate(
+    start_station_id = case_when(
+      !is.na(start_station_id.y) ~ as.character(start_station_id.y), # If start_station_id.y is not NA, use it
+      TRUE ~ as.character(start_station_id.x)              # Otherwise, use start_station_id.x
+    )
+  ) %>%
+  select(-starts_with("start_station_id."))  # Remove columns starting with 'start_station_id.'
+  
+```
+
+Now we have just put the right IDs to the names that had more than 1 ID. Now, we can rectify with the previous example.
+
+```{r Checking that we have IDs to fix}
+df_fixed %>% filter(grepl("Buckingham Fountain",start_station_name)) %>% select(start_station_name, start_station_id) %>% distinct()
+```
+As you can see, now we have only one ID for Buckingham Fountain. Great! We have cleaned the start_station names and IDs.
+
+We could print again the length for unique values and compare it with the initial values. Reminder of initial values: Unique station names: 1,646. Unique IDs: 1611. Something that I would add is that for 66 IDs have 2 very different station names. So, still we have duplicates, and we can expect to have more unique values for station names than station IDs. And based on this analysis we can expect to have 66 more names than IDs. Let's see.
+
+```{r}
+new_unique_stations <- unique(df_fixed$start_station_name)
+length(new_unique_stations)
+new_unique_ids <- unique(df_fixed$start_station_id)
+length(new_unique_ids)
+```
+Great! as expected. We have 66 more values than IDs for the names. 1,634 - 1,568 = 66. Of course, this is not ideal, but since it's a project where I can't have more data... this is the most I was able to clean and fix.
+
+And we passed from 1,646 to 1634 unique station names, and from 1611 to 1568 unique station IDs. 
+I fixed 43 station names to have the right ID, and this is the difference we have with the new unique IDs.
+And I fixed 13 IDs to have the right name, but this difference doesn't coincide: 1646 - 1634 = 12. And this is because in the name, I fixed one name that was also in the other set to fix values. To be more explicit, I needed to fix "Buckingham Fountain" with the right ID, but also "15541.1.1" with the right name that it's the same, because the actual ID is:  "15541"
+
+So, everything is making sense and all the numbers are consistent.
+
+
+Now, we need to check the same for end_station names and IDs.
+
+```{r}
+end_unique_stations <- unique(df_fixed$end_station_name)
+length(end_unique_stations)
+end_unique_ids <- unique(df_fixed$end_station_id)
+length(end_unique_ids)
+```
+As we can see, also here we have a discrepancy in the number of unique values for end_station names and IDs.
+
+We can do the same process as above.
+
+This time we are going to go directly to the point.
+
+Getting end unique stations by name, and id.
+```{r}
+# Get unique values of start_station_name and start_station_id
+end_unique_values <- unique(df_fixed[c("end_station_name", "end_station_id")])
+```
+
+Getting the end_station_name that have more than 1 ID. This is the list of the end_stations that we need to fix.
+We are going to need that list as a vector
+```{r Stations with more than 1 ID}
+end_stations_to_fix_IDs <- end_unique_values %>% 
+  group_by(end_station_name) %>% 
+  summarize(count_ID = n()) %>% 
+  filter(count_ID>1) %>% 
+  arrange(count_ID) %>% 
+  pull(end_station_name)
+  
+```
+
+Getting the end_station_id that have more than 1 name
+
+```{r}
+end_stations_to_fix_names <- end_unique_values %>% 
+  group_by(end_station_id) %>% 
+  summarize(count_names = n()) %>% 
+  filter(count_names>1) %>% 
+  arrange(-count_names) %>% 
+  pull(end_station_id)
+
+```
+
+Let's check the names for some IDs to be fixed, like 15541, 13290, 21322
+```{r}
+end_unique_values %>% filter(grepl("15541", end_station_id))
+end_unique_values %>% filter(grepl("13290", end_station_id))
+end_unique_values %>% filter(grepl("21322", end_station_id))
+end_unique_values %>% filter(grepl("Artesian Ave & 55th St", end_station_name))
+end_unique_values %>% filter(grepl("Buckingham Fountain", end_station_name))
+end_unique_values %>% filter(grepl("California Ave & 36th St", end_station_name))
+```
+
+
+I am seeing a lot of IDs and names that I have already fixed, so, I will use the left_join too for end_station IDs and names.
+I will work with: df_correct_names and df_correct_IDs
+
+
+First, I want to create a new copy to change the values for end_station columns
+
+```{r}
+df_fixed_2 <- df_fixed
+```
+
+Now we need to copy the df_correct_names and df_correct_IDs in order to change the name of the columns, from star_ to end_
+
+```{r}
+end_df_correct_names <- df_correct_names  
+
+#Rename the columns:
+end_df_correct_names <- end_df_correct_names %>% 
+  rename(end_station_name = start_station_name) %>%
+  rename(end_station_id = start_station_id)
+  
+
+end_df_correct_IDs <- df_correct_IDs
+#Rename the columns:
+end_df_correct_IDs <- end_df_correct_IDs %>% 
+  rename(end_station_name = start_station_name) %>%
+  rename(end_station_id = start_station_id)
+
+
+
+```
+
+Now, we'll apply the left_join() and will fix the names, making the match by "end_station_id"
+
+```{r Updating names into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed_2 <- df_fixed_2 %>% 
+  left_join(end_df_correct_names, by = "end_station_id", suffix = c(".x", ".y")) %>% 
+  mutate(
+    end_station_name = case_when(
+      !is.na(end_station_name.y) ~ as.character(end_station_name.y), # If end_station_name.y is not NA, use it
+      TRUE ~ as.character(end_station_name.x)              # Otherwise, use end_station_name.x
+    )
+  ) %>%
+  select(-starts_with("end_station_name."))  # Remove columns starting with 'end_station_name.' the temporary columns
+  
+```
+
+Now, we'll apply the left_join() and will fix the IDs, making the match by "end_station_name"
+
+```{r Updating IDs into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed_2 <- df_fixed_2 %>% 
+  left_join(end_df_correct_IDs, by = "end_station_name", suffix = c(".x", ".y")) %>% 
+  mutate(
+    end_station_id = case_when(
+      !is.na(end_station_id.y) ~ as.character(end_station_id.y), # If end_station_id.y is not NA, use it
+      TRUE ~ as.character(end_station_id.x)              # Otherwise, use end_station_id.x
+    )
+  ) %>%
+  select(-starts_with("end_station_id."))  # Remove columns starting with 'end_station_id.'
+  
+```
+
+We have applied the correct names and IDs, let's check the previous test.
+```{r}
+df_fixed_2 %>% filter(grepl("15541", end_station_id)) %>% select(end_station_name, end_station_id) %>% distinct()
+df_fixed_2 %>% filter(grepl("13290", end_station_id)) %>% select(end_station_name, end_station_id) %>% distinct()
+df_fixed_2 %>% filter(grepl("21322", end_station_id)) %>% select(end_station_name, end_station_id) %>% distinct()
+df_fixed_2 %>% filter(grepl("Artesian Ave & 55th St", end_station_name)) %>% select(end_station_name, end_station_id) %>% distinct()
+df_fixed_2 %>% filter(grepl("Buckingham Fountain", end_station_name)) %>% select(end_station_name, end_station_id) %>% distinct()
+df_fixed_2 %>% filter(grepl("California Ave & 36th St", end_station_name)) %>% select(end_station_name, end_station_id) %>% distinct()
+```
+
+As you can see, now we have only one record for each test. *The values to test were taken from end_stations_to_fix_IDs and end_stations_to_fix_names
+
+As final step, let's print again the amount of unique end values.
+
+```{r}
+new_end_unique_stations <- unique(df_fixed_2$end_station_name)
+length(new_end_unique_stations)
+new_end_unique_ids <- unique(df_fixed_2$end_station_id)
+length(new_end_unique_ids)
+```
+Now the difference is 67, one more than the expected 66 form start_values. We can check, what is happening if we filter the count more than 1 for IDs and names. Let's check it.
+
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+end_unique_values <- unique(df_fixed_2[c("end_station_name", "end_station_id")])
+end_unique_values %>% group_by(end_station_name) %>% summarize(count_ID = n()) %>% filter(count_ID>1) %>% arrange(-count_ID)
+
+```
+
+Okay, we see that Cicero Ave & Wellington Ave have two IDs, and effectively, we didn't have this issue with the start_values, so it is not in the correct_IDs dataframes.
+
+Will perform the same for check count of names more than 1. Just to rectify, but we can expect empty values.
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+end_unique_values %>% group_by(end_station_id) %>% summarize(count_name = n()) %>% filter(count_name>1) %>% arrange(-count_name)
+
+```
+
+After working a lot manually searching in different combinations, searchig for star_ and end_ values for the IDs, and then getting sometimes different names, and then search in the same way for those names but using grepl() function to find more coincidences. I conclude that definetevely in a real scenario I would ask for the correct list of IDs and names, and specifically for the IDs I am having issues, and most probably I would run another for loop to get all the possible names and in this way to have the correct IDs for those names, and also maybe agree that some different names could have the same ID. At this moment, after running first two lines, and then up to 4 lines or 8 in the case for the first iteration I didn't find different IDs, I won't spend more time trying to fix something that I can't get a feedback and make sure if this is completely correct.
+
+Now, I will add only the data I was able to find, only two IDs to put the correct name, and 4 names to put the correct ID. Those are related.
+
+I will create a new data frame with the new correct IDs to add. 
+```{r}
+new_end_records_to_fix_IDs <- data.frame(
+  end_station_name = c(
+    "Public Rack - Hamlin Ave & Grand Ave",
+    "Hamlin Ave & Grand Ave",
+    "Public Rack - Cicero Ave & Wellington Ave",
+    "Cicero Ave & Wellington Ave"
+  ),
+  end_station_id = c(
+    "372",
+    "372",
+    "24174",
+    "24174"
+  ),
+  stringsAsFactors = FALSE #ensures that character vectors remain as characters in your data frame.
+)
+```
+
+Now I will create the other data frame with the new correct names to add.
+```{r}
+new_end_records_to_fix_names <- data.frame(
+  end_station_name = c(
+    "Public Rack - Hamlin Ave & Grand Ave",
+    "Public Rack - Cicero Ave & Wellington Ave"
+  ),
+  end_station_id = c("372", "24174")
+)
+```
+
+Now use the left_join(). First, we are going to update the IDs.
+
+
+```{r Updating IDs into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed_2 <- df_fixed_2 %>% 
+  left_join(new_end_records_to_fix_IDs, by = "end_station_name", suffix = c(".x", ".y")) %>% 
+  mutate(
+    end_station_id = case_when(
+      !is.na(end_station_id.y) ~ as.character(end_station_id.y), # If end_station_id.y is not NA, use it
+      TRUE ~ as.character(end_station_id.x)              # Otherwise, use end_station_id.x
+    )
+  ) %>%
+  select(-starts_with("end_station_id."))  # Remove columns starting with 'end_station_id.'
+  
+```
+
+Now use the left_join(). First, we are going to update the names.
+
+```{r Updating names into the copy df_fixed}
+#Left join. The left_join() only add a new column to represent the matched value for the ID in this case
+df_fixed_2 <- df_fixed_2 %>% 
+  left_join(new_end_records_to_fix_names, by = "end_station_id", suffix = c(".x", ".y")) %>% 
+  mutate(
+    end_station_name = case_when(
+      !is.na(end_station_name.y) ~ as.character(end_station_name.y), # If end_station_name.y is not NA, use it
+      TRUE ~ as.character(end_station_name.x)              # Otherwise, use end_station_name.x
+    )
+  ) %>%
+  select(-starts_with("end_station_name."))  # Remove columns starting with 'end_station_name.' the temporary columns
+  
+```
+
+Let's do again the previous tests. We expect to not have names with more than 1 ID.
+
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+end_unique_values <- unique(df_fixed_2[c("end_station_name", "end_station_id")])
+end_unique_values %>% group_by(end_station_name) %>% summarize(count_ID = n()) %>% filter(count_ID>1) %>% arrange(-count_ID)
+
+```
+
+Great! now all the names have only one ID. But for the next test, to see if there are IDs with more than 1 name, we can expect to have those. To be more precise, we fixed 2 IDs to have only one name, so we are going to have 66.
+
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+unique(df_fixed_2[c("end_station_name", "end_station_id")]) %>%  group_by(end_station_id) %>% summarize(count_name = n()) %>% filter(count_name>1) %>% arrange(-count_name) %>% distinct()
+
+```
+The same as with the star_station_id. Let's look at it very quickly to see if there are a lot of coincidences or even if it is the same.
+
+```{r Counting the IDs for each name, showing only those names with more than one ID}
+unique(df_fixed_2[c("start_station_name", "start_station_id")]) %>%  group_by(start_station_id) %>% summarize(count_name = n()) %>% filter(count_name>1) %>% arrange(-count_name) %>% distinct()
+
+```
+At a first look, we can see there are a lot of coinicidenses but some of them are not present in the other set, so, we could try to fix it, but as I said, this will take a lot of time and we have fixed a lot of records, compared to the more than 5M rows, we could say it's okay, but in a real scenario I would ask for the right list for those IDs.
+
+Now, as a final step, we are going to explore the other columns.
+
+From the 7 columns with chr values. We have worked with 4, the other ones are: 
+ride_id 
+rideable_type 
+member_casual
+
+We can use skim_without_charts() to identify which ones need attention.
+
+```{r}
+skim_without_charts(df_fixed_2)
+```
+
+
+We see that the three columns are complete, and we can rectify if the ID for each ride is unique:
+```{r}
+dim(df_fixed_2)
+length(unique(df_fixed_2$ride_id))
+```
+Now, we need to rectify the values of each rideable_type and the type of user.
+
+```{r}
+unique(df_fixed_2$rideable_type)
+unique(df_fixed_2$member_casual)
+```
+Okay, now we are sure we are working with correct names.
+
+Now, we are going to check duplicates and finally drop rows with null values.
+Since we have for all the rows different ride_id, if we analyze the duplicates contemplating that column, we are going to have non duplicates, we should exclude that column.
+
+```{r Counting duplicates}
+# Identify duplicated rows across all columns except ID_ride
+duplicates <- duplicated(df_fixed_2[, !names(df_fixed_2) %in% "ID_ride"])
+
+# Count the number of duplicated rows
+dup_count <- sum(duplicates)
+
+cat("Number of duplicated rows across all columns except ID_ride:", dup_count, "\n")
+```
+
+Great, we don't have duplicates.
+
+Now, we are going to drop the rows where we have null values. We know the columns where could have those null values, which are: 
+start_station_name, start_station_id, end_station_name, end_station_id, end_lat, and end_lng.
+
+```{r}
+print(dim(df_fixed_2))
+df_fixed_2 <- df_fixed_2[complete.cases(df_fixed_2[, c("start_station_name", "start_station_id", "end_station_name","end_station_id","end_lat","end_lng")]), ]
+
+print(dim(df_fixed_2))
+```
+Now, we are going to store the final cleaned data frame into a new CSV file.
+
+```{r Generating the cleaned CSV file}
+
+# Specify the file path where you want to save the CSV file
+file_path <- "./cleaned_df.csv"
+
+# Write the data frame to a CSV file
+write.csv(df_fixed_2, file = file_path, row.names = FALSE)
+
+# Print confirmation
+cat("CSV file saved successfully to:", file_path, "\n")
+
+```
+

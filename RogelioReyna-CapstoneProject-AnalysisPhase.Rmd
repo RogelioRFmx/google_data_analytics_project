@@ -1,0 +1,151 @@
+---
+title: "Analysis Phase"
+author: "Rogelio Reyna"
+date: "2024-08-06"
+output: html_document
+---
+
+Now that we have cleaned all the data in the previous phase, we can proceed with the furhter analysis. Here we are going to create additional columns and generate other interesting components.
+
+```{r Load the cleaned data frame}
+df = read_csv("cleaned_df.csv")
+
+```
+
+Creating the new columns: ride_length, day_of_week, month_of_week, season.
+
+```{r Creating new columns}
+df <- df %>%
+  mutate(ride_length = as.numeric(difftime(ended_at, started_at, units = "mins")))
+
+df <- df %>%
+  mutate(
+    day_of_week = wday(started_at, label = TRUE), # Extract day of the week
+    month_of_year = month(started_at, label = TRUE), # Extract month
+    season = case_when(
+      month(started_at) %in% c(3, 4, 5) ~ "Spring",
+      month(started_at) %in% c(6, 7, 8) ~ "Summer",
+      month(started_at) %in% c(9, 10, 11) ~ "Fall",
+      month(started_at) %in% c(12, 1, 2) ~ "Winter"
+    )
+  )
+
+
+head(df[c("started_at", "ended_at","ride_length","day_of_week","month_of_year","season")])
+
+```
+
+Summarizing data. Counting the number of rides from the previous year for each type of user.
+
+```{r}
+df[c("member_casual")] %>% 
+  
+  group_by(member_casual) %>% summarize(number_of_rides = n()) %>% 
+  
+  filter(number_of_rides>1) %>% 
+  
+  arrange(-number_of_rides)
+```
+
+
+Now we have our data complete, now let's figure out how is different casual members from 
+```{r Creating charts}
+
+plot_bar <-  ggplot(data=df, aes(x = member_casual)) +
+  geom_bar(aes(fill = member_casual)) +
+  labs(title = "Total Rides by Member Type", x = "Member Type", y = "Number of Rides") +
+  scale_y_continuous(labels = scales::comma)
+ 
+
+ggsave(filename = "TotalRidesbyMemberType.png", plot=plot_bar, width = 8, height = 6, dpi=400)
+
+
+```
+
+Creating new bar chart.
+
+```{r}
+# Plot with counts displayed inside the bars
+plot_bar <- ggplot(data = df, aes(x = member_casual, fill = member_casual)) +
+  geom_bar() +  # geom_bar() automatically counts the occurrences
+  geom_text(position = position_stack(vjust = 0.5), aes(label = scales::comma(..count..)), stat = "count", colour = "white", fontface = "bold") +  # Add count labels
+  labs(title = "Total Rides by Member Type", x = "Member Type", y = "Number of Rides") +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal() + # Clean theme for better readability
+  theme(text = element_text(color = "white")) + #Color outside the chart itself, Number of rides, and member type. but not the values in the axis
+
+# Save the plot
+ggsave(filename = "TotalRidesbyMemberType-theme-minimal.png", plot = plot_bar, width = 8, height = 6, dpi = 400)
+```
+
+
+
+```{r}
+PieDonut(data= df, aes(member_casual), explode = 2, explodeDonut = true)
+
+  
+
+```
+
+
+```{r}
+ggplot(data=df, aes(x = member_casual, y = ride_length, fill = member_casual)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Ride Lengths by Member Type", x = "Member Type", y = "Ride Length")
+
+
+
+```
+
+```{r}
+ggplot(data=df, aes(x = ride_length, fill = member_casual)) +
+  geom_histogram(position = "dodge", bins = 30) +
+  labs(title = "Histogram of Ride Lengths by Member Type", x = "Ride Length", y = "Count")
+
+
+```
+
+```{r}
+df %>%
+  mutate(hour = as.numeric(format(started_at, "%H"))) %>%
+  group_by(day_of_week, hour, member_casual) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = hour, y = day_of_week, fill = count)) +
+  geom_tile() +
+  facet_wrap(~ member_casual) +
+  labs(title = "Heatmap of Rides by Hour and Day of Week", x = "Hour of Day", y = "Day of Week")
+
+```
+
+```{r}
+df %>%
+  group_by(month_of_year, member_casual) %>%
+  summarise(total_rides = n()) %>%
+  ggplot(aes(x = month_of_year, y = total_rides, color = member_casual)) +
+  geom_line() +
+  labs(title = "Total Rides Over Time by Member Type", x = "Month", y = "Total Rides")
+
+
+```
+
+```{r}
+df %>%
+  count(member_casual) %>%
+  ggplot(aes(x = "", y = n, fill = member_casual)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar(theta = "y") +
+  labs(title = "Proportion of Rides by Member Type")
+
+
+```
+
+```{r}
+ggplot(data=df, aes(x = season, y = ride_length, fill = member_casual)) +
+  geom_boxplot() +
+  labs(title = "Ride Length Distribution by Season and Member Type", x = "Season", y = "Ride Length")
+```
+
+
+
+
+
