@@ -77,7 +77,7 @@ Findings
 Share the findings using visualizations.
 
 > Data Visualization
-> I used Tableau public in making the visualization.
+> I used Tableau public for making the visualization.
 
 
 # Distribution of User Types in the Last 12 Months
